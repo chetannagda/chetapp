@@ -12,7 +12,7 @@ interface MessageBubbleProps {
   onReply: (message: ReplyTo) => void;
 }
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL?.trim() || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
 
 export function MessageBubble({ message, isOwn, showSender, onReply }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false);
@@ -47,6 +47,11 @@ export function MessageBubble({ message, isOwn, showSender, onReply }: MessageBu
   };
 
   const handleDownload = async () => {
+    if (!SOCKET_URL && !message.content.startsWith('http')) {
+      console.error('Image server is not configured. Set NEXT_PUBLIC_SOCKET_URL in deployment settings.');
+      return;
+    }
+
     const imageUrl = message.content.startsWith('http') 
       ? message.content 
       : `${SOCKET_URL}${message.content}`;
@@ -72,7 +77,9 @@ export function MessageBubble({ message, isOwn, showSender, onReply }: MessageBu
   const imageUrl = message.type === 'image' 
     ? (message.content.startsWith('http') 
         ? message.content 
-        : `${SOCKET_URL}${message.content}`)
+        : SOCKET_URL
+          ? `${SOCKET_URL}${message.content}`
+          : message.content)
     : null;
 
   return (

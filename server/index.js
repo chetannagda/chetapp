@@ -34,17 +34,20 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+
+  const normalizedOrigin = origin.trim();
+  const isLocalOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalizedOrigin);
+  const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(normalizedOrigin);
+  const isVercelBranchPreview = /^https:\/\/[a-z0-9-]+-[a-z0-9-]+-[a-z0-9-]+\.vercel\.app$/i.test(normalizedOrigin);
+
+  return allowedOrigins.includes(normalizedOrigin) || isLocalOrigin || isVercelPreview || isVercelBranchPreview;
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (no Origin header)
-    if (!origin) return callback(null, true);
-
-    // Exact allow-list or any localhost/127.0.0.1 origin
-    const isAllowed =
-      allowedOrigins.includes(origin) ||
-      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
-
-    if (isAllowed) return callback(null, true);
+    if (isAllowedOrigin(origin)) return callback(null, true);
     return callback(new Error(`Origin not allowed by CORS: ${origin}`));
   },
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -53,7 +56,10 @@ app.use(cors({
 
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error(`Origin not allowed by Socket.IO CORS: ${origin}`));
+    },
     methods: ['GET', 'POST'],
     credentials: true
   },

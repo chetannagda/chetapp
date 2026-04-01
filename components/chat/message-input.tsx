@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Send, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import type { ReplyTo } from '@/lib/types';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL?.trim() || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
 
 interface MessageInputProps {
   replyTo: ReplyTo | null;
@@ -36,6 +36,11 @@ export function MessageInput({ replyTo, onCancelReply, onMessageSent }: MessageI
 
     // Handle image upload
     if (selectedFile && previewImage) {
+      if (!SOCKET_URL) {
+        setUploadError('Upload server is not configured. Set NEXT_PUBLIC_SOCKET_URL in deployment settings.');
+        return;
+      }
+
       setIsUploading(true);
       try {
         const formData = new FormData();

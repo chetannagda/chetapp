@@ -18,7 +18,7 @@ interface SocketContextType extends ChatState {
 
 const SocketContext = createContext<SocketContextType | null>(null);
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL?.trim() || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -35,6 +35,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
+    if (!SOCKET_URL) {
+      setError('Chat server is not configured. Set NEXT_PUBLIC_SOCKET_URL in your deployment environment.');
+      return;
+    }
+
     const newSocket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
