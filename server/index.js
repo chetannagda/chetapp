@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -31,7 +32,24 @@ app.use('/api/', limiter);
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:3000', 'http://localhost:3001'];
+  : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (no Origin header)
+    if (!origin) return callback(null, true);
+
+    // Exact allow-list or any localhost/127.0.0.1 origin
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+
+    if (isAllowed) return callback(null, true);
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true,
+}));
 
 const io = new Server(httpServer, {
   cors: {
@@ -72,7 +90,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   }
 });
 
@@ -139,7 +157,7 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+      return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
     }
   }
   if (error.message.includes('Invalid file type')) {
@@ -373,7 +391,19 @@ setInterval(() => {
   });
 }, 60 * 60 * 1000);
 
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT || 3001);
+
+httpServer.on('error', (error) => {
+  if (error?.code === 'EADDRINUSE') {
+    console.log(`Port ${PORT} is already in use.`);
+    console.log('Another ChetApp server is likely already running.');
+    console.log('Stop the old process first, then run "npm run dev" again.');
+    process.exit(0);
+  }
+
+  console.error('Server startup error:', error);
+  process.exit(1);
+});
 
 httpServer.listen(PORT, () => {
   console.log(`ChetApp server running on port ${PORT}`);

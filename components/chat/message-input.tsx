@@ -57,7 +57,11 @@ export function MessageInput({ replyTo, onCancelReply, onMessageSent }: MessageI
         onMessageSent();
       } catch (error) {
         console.error('Upload error:', error);
-        setUploadError(error instanceof Error ? error.message : 'Failed to upload image');
+        if (error instanceof TypeError) {
+          setUploadError('Cannot reach upload server. Make sure backend is running on port 3001 and CORS is allowed.');
+        } else {
+          setUploadError(error instanceof Error ? error.message : 'Failed to upload image');
+        }
       } finally {
         setIsUploading(false);
       }
@@ -95,9 +99,9 @@ export function MessageInput({ replyTo, onCancelReply, onMessageSent }: MessageI
         return;
       }
 
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setUploadError('File too large. Maximum size is 5MB.');
+      // Validate file size (50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        setUploadError('File too large. Maximum size is 50MB.');
         return;
       }
 
@@ -173,7 +177,7 @@ export function MessageInput({ replyTo, onCancelReply, onMessageSent }: MessageI
         )}
 
         {/* Input form */}
-        <form onSubmit={handleSubmit} className="flex items-end gap-2">
+        <form onSubmit={handleSubmit} className="flex items-end gap-2 sm:gap-2.5">
           <input
             type="file"
             ref={fileInputRef}
@@ -184,13 +188,15 @@ export function MessageInput({ replyTo, onCancelReply, onMessageSent }: MessageI
           
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             size="icon"
             onClick={openFilePicker}
             disabled={isUploading}
-            className="shrink-0"
+            className="h-11 w-11 shrink-0 rounded-xl border border-border/80 shadow-sm transition-all hover:scale-[1.03] hover:border-primary/50 hover:bg-primary/10"
+            title="Upload image"
+            aria-label="Upload image"
           >
-            <ImageIcon className="h-5 w-5" />
+            <ImageIcon className="h-6 w-6 sm:h-6 sm:w-6" />
           </Button>
 
           <div className="relative flex-1">
@@ -211,7 +217,7 @@ export function MessageInput({ replyTo, onCancelReply, onMessageSent }: MessageI
             type="submit"
             size="icon"
             disabled={(!message.trim() && !previewImage) || isUploading}
-            className="shrink-0"
+            className="h-11 w-11 shrink-0 rounded-xl"
           >
             {isUploading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
